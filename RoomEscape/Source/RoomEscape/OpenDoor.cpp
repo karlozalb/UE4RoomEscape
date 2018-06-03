@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
+#define OUT
 
 // Sets default values for this component's properties
 UOpenDoor::UOpenDoor()
@@ -21,44 +22,40 @@ void UOpenDoor::BeginPlay()
 {
 	Super::BeginPlay();		
 
-	ActorWhoOpens = GetWorld()->GetFirstPlayerController()->GetPawn();
     Owner = GetOwner();
 }
-
-void UOpenDoor::OpenDoor()
-{
-	Owner->SetActorRotation(FRotator(0.f, 60.f, 0.f));
-
-	FString Rotation = Owner->GetTransform().GetRotation().ToString();
-
-	UE_LOG(LogTemp, Warning, TEXT("Rotation: %s"), *Rotation);
-}
-
-void UOpenDoor::CloseDoor()
-{
-	Owner->SetActorRotation(FRotator(0.f, 0.f, 0.f));
-
-	FString Rotation = Owner->GetTransform().GetRotation().ToString();
-
-	UE_LOG(LogTemp, Warning, TEXT("Rotation: %s"), *Rotation);
-}
-
 
 // Called every frame
 void UOpenDoor::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (ActivationTrigger->IsOverlappingActor(ActorWhoOpens)) 
+	if (GetTotalMassOfActorsOnPlate() > RequiredMass) 
 	{
-		OpenDoor();
-		LastDoorOpenTime = GetWorld()->GetTimeSeconds();
+		OnOpen.Broadcast();
+	}
+	else
+	{
+		OnClose.Broadcast();
+	}
+}
+
+float UOpenDoor::GetTotalMassOfActorsOnPlate()
+{
+	float TotalMass = 0.f;
+
+	//Buscar actors que están en el trigger y sumar sus masas.
+	TArray<AActor*> OverlappingActors;
+
+	ActivationTrigger->GetOverlappingActors(OUT OverlappingActors);
+
+	for (const auto& Actor : OverlappingActors)
+	{
+		TotalMass += Actor->FindComponentByClass<UPrimitiveComponent>()->GetMass();
+
+		UE_LOG(LogTemp, Warning, TEXT("OnactivationTrigger: %s"), *Actor->GetName());
 	}
 
-	if (GetWorld()->GetTimeSeconds() - LastDoorOpenTime > DoorCloseDelay)
-	{
-		CloseDoor();
-	}
-	
+	return TotalMass;
 }
 
